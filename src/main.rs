@@ -4,7 +4,6 @@ use std::fs::File;
 use std::thread;
 use std::io::prelude::*;
 use std::io::{stdin, stdout, BufReader, Write};
-use std::sync::{ Mutex };
 use std::sync::mpsc::{channel, Sender};
 use std::path::Path;
 use std::time::Duration;
@@ -49,32 +48,6 @@ fn read_and_add(path: &str, mut proxy_list: Vec<String>) -> Vec<String> {
 
     proxy_list
 }
-
-// async fn check_proxy(proxy: String) {
-//     let proxy_string = format!("http://{}", proxy);
-//     match reqwest::Proxy::all(&proxy_string) {
-//         Ok(proxy) => {
-//             match reqwest::Client::builder().timeout(Duration::from_secs(3))
-//             .danger_accept_invalid_certs(true).proxy(proxy).build() {
-//                 Ok(client) => {
-//                     match client.get("https://api.ipify.org?format=json").send().await {
-//                         Ok(response) => {
-//                             println!("{:?}", response)
-//                         }
-//                         Err(error) => {
-//                             println!("Error: {:?}", error)
-//                         }
-//                     }
-//                 }
-//                 Err(error) => {
-//                     println!("Error: {}", error);
-//                 }      
-//             }
-            
-//         }
-//         Err(error) => println!("Error: {}", error),
-//     }
-// }
 
 fn check_proxy(proxy_string: String) -> bool {
     let proxy = reqwest::Proxy::all(&proxy_string).expect("Failed to build proxy");
