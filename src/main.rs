@@ -4,7 +4,7 @@ use std::fs::File;
 use std::thread;
 use std::io::prelude::*;
 use std::io::{stdin, stdout, BufReader, Write};
-use std::sync::{ Mutex};
+use std::sync::{ Mutex };
 use std::sync::mpsc::{channel, Sender};
 use std::path::Path;
 use std::time::Duration;
@@ -77,23 +77,32 @@ fn read_and_add(path: &str, mut proxy_list: Vec<String>) -> Vec<String> {
 // }
 
 fn check_proxy(proxy_string: String) -> bool {
-    let proxy = reqwest::Proxy::all(&proxy_string).unwrap();
-    let client = reqwest::Client::builder().timeout(Duration::from_secs(3)).danger_accept_invalid_certs(true).proxy(proxy).build().unwrap();
+    let proxy = reqwest::Proxy::all(&proxy_string).expect("Failed to build proxy");
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(3)).danger_accept_invalid_certs(true).proxy(proxy).build().expect("Cannot create Client");
+ 
+    let runtime = tokio::runtime::Runtime::new();
 
-    let mut runtime = tokio::runtime::Runtime::new().unwrap();
-    let response = runtime.block_on(async move {
-        let resp = client.get("https://api.ipify.org?format=json").send().await;
-        match resp {
-            Ok(_) => {
-                return true;
-            },
-            Err(_) => {
-                return false;
-            }
+    match runtime {
+        Ok(runtime) => {
+            let mut runtime = runtime;
+            let response = runtime.block_on(async move {
+                let resp = client.get("https://api.ipify.org?format=json").send().await;
+                match resp {
+                    Ok(_) => {
+                        return true;
+                    },
+                    Err(_) => {
+                        return false;
+                    }
+                }        
+            });
+            
+            return response;
+        },
+        Err(_) => {
+            return false;
         }
-    });
-
-    return response
+    };
 
 }
 
@@ -106,27 +115,26 @@ fn main() {
     stdin().read_line(&mut input).expect("Did not enter a correct string");
     let proxy_list = vec![];
     // println!("{:?}", input.as_ptr());
-    let proxy_list = read_and_add(&input[0..input.len() - 1].to_string() ,proxy_list); // <--- proxy_list moved to here and returned by the function
-    let proxy_list = Mutex::from(proxy_list);
+    let mut proxy_list = read_and_add(&input[0..input.len() - 2].to_string() ,proxy_list); // <--- proxy_list moved to here and returned by the function
+    // let proxy_list = Mutex::from(proxy_list);
     let mut child_threads = vec![];
     let (sender, receiver) = channel::<Action>();
 
-    // Mutilple Threading path
-
-    for i in 0..100 {
+    for i in 0..30 {
         // let list_clone_num = list_arc_num.clone();
         let sender = sender.clone();
         let thread = thread::spawn(move || {
             let (tx, rx) = channel::<Action>();
 
             loop {
+                thread::sleep(Duration::from_secs(1));
                 let tx = tx.clone();
                 let response = Action {
                     kind: ActionTypes::REQUIRE_JOB,
                     payload: format!("Send from thread {}", i).to_string(),
                     sender: Some(tx),
                 };    
-                let _ = sender.send(response).unwrap();
+                let _ = sender.send(response);
                 match rx.recv() {
                     Ok(response) => {
                         match response.kind {
@@ -137,19 +145,37 @@ fn main() {
                             // Handle Actions
                             ActionTypes::JOB_REQUIRE_APPROVED => {
                                 let proxy_string = format!("http://{}", response.payload);
-                                thread::sleep(Duration::from_secs(2));
                                 let resp = check_proxy(proxy_string);
-                                println!("{:?}", resp);
+                                
+                                match resp {
+                                    true => {
+                                        let response = Action {
+                                            kind: ActionTypes::JOB_SUCCESS,
+                                            payload: response.payload,
+                                            sender: None,
+                                        };
+                                        let _ = sender.send(response);
+                                    },
+                                    false => {
+                                        let response = Action {
+                                            kind: ActionTypes::JOB_FAILED,
+                                            payload: response.payload,
+                                            sender: None,
+                                        };
+                                        let _ = sender.send(response);
+                                    },
+                                }
+
                             },
                             ActionTypes::NO_AVAIABLE_JOB => {
-                                // println!("Thread {}: No jobs for me, I will sucide", i);
+                                println!("Thread {}: No jobs for me, I will sucide", i);
                                 break;
                             },
                         }
                     }
                     Err(_) => {}
                 }    
-                thread::sleep(Duration::from_secs(1));
+                thread::sleep(Duration::from_millis(50));
             }
         });
 
@@ -167,7 +193,7 @@ loop {
                 ActionTypes::NO_AVAIABLE_JOB => {},
                 // Handle Actions
                 ActionTypes::REQUIRE_JOB => {
-                    let mut proxy_list = proxy_list.lock().unwrap();
+                    // let proxy_list = proxy_list;
                     let proxy_len = proxy_list.len();
                     if proxy_list.len() > 0 {
                         let resp = Action {
@@ -177,10 +203,14 @@ loop {
                         };
                         let _ = response.sender.unwrap().send(resp);
                     };
-                    let _ = proxy_list.pop();
+                    let _ = &mut proxy_list.pop();
                 },
-                ActionTypes::JOB_SUCCESS => {},
-                ActionTypes::JOB_FAILED => {},
+                ActionTypes::JOB_SUCCESS => {
+                    println!("[WORKING] {}", response.payload);
+                },
+                ActionTypes::JOB_FAILED => {
+                    println!("[NON-WORKING] {}", response.payload);
+                },
             }
         }
         Err(_) => println!("Error."),
