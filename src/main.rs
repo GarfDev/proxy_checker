@@ -93,7 +93,7 @@ fn main() {
     let mut child_threads = vec![];
     let (sender, receiver) = channel::<Action>();
 
-    for i in 0..30 {
+    for i in 0..60 {
         // let list_clone_num = list_arc_num.clone();
         let sender = sender.clone();
         let thread = thread::spawn(move || {
@@ -165,18 +165,25 @@ loop {
                 ActionTypes::JOB_REQUIRE_APPROVED => {},
                 ActionTypes::NO_AVAIABLE_JOB => {},
                 // Handle Actions
-                ActionTypes::REQUIRE_JOB => {
+                ActionTypes::REQUIRE_JOB => {g
                     // let proxy_list = proxy_list;
                     let proxy_len = proxy_list.len();
-                    if proxy_list.len() > 0 {
+                    if proxy_len > 0 {
                         let resp = Action {
                             kind: ActionTypes::JOB_REQUIRE_APPROVED,
                             payload: proxy_list[proxy_len-1].clone(),
                             sender: None,
                         };
                         let _ = response.sender.unwrap().send(resp);
-                    };
-                    let _ = &mut proxy_list.pop();
+                        let _ = &mut proxy_list.pop();
+                    } else {
+                        let resp = Action {
+                            kind: ActionTypes::NO_AVAIABLE_JOB,
+                            payload: "".to_string(),
+                            sender: None,
+                        };
+                        let _ = response.sender.unwrap().send(resp);
+                    }
                 },
                 ActionTypes::JOB_SUCCESS => {
                     println!("[WORKING] {}", response.payload);
