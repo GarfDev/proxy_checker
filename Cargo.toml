@@ -7,9 +7,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+regex = { version = "*" }
+rusqlite = { version = "*", features = ["bundled"] }
+indicatif = { version = "0.15.0" }
+dialoguer = { version = "0.7.1" }
+console = { version = "0.13.0" }
+rand = { version = "0.7.3" }
+proctitle = { version = "0.1.1" }
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "0.2", features = ["full"] }
 reqwest = { version = "0.10.8", features = ["json", "cookies"] }
+serde_json = { version = "1.0" }
 futures = { version = "0.3.5" }
 colored = { version = "2" }
-serde_json = "1.0"

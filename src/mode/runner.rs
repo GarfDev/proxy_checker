@@ -1,12 +1,14 @@
 
+use regex::Regex;
+use std::thread::sleep;
+use rand::prelude::*;
 use serde::{Deserialize};
 use std::time::{Duration, Instant};
 
-use crate::constants::{INITIAL_RESULT, Result};
+use crate::constants::{self, INITIAL_RESULT, Result};
 
-#[allow(dead_code)]
 #[derive(Deserialize)]
-struct IP_RESPONSE {
+pub struct IpResponse {
     city: String,
     country: String,
     countryCode: String,
@@ -22,14 +24,18 @@ struct IP_RESPONSE {
     zip: String,
 }
 
-fn result_adapter(latency: u128, proxy_string: String, response: IP_RESPONSE) -> Result {
-    let proxy_string: Vec<&str> = proxy_string.split(":").collect();
+pub fn result_adapter(latency: u128, proxy_string: String, response: IpResponse) -> Result {
+
+    let proxy_regex = Regex::new(constants::PROXY_REGEX).unwrap();
+
+    let regex_result = proxy_regex.captures(&proxy_string).unwrap();
 
     let result: Result = Result {
         latency,
         success: true,
-        ip: Some(proxy_string[0].to_string()),
-        port: Some(proxy_string[1].to_string()),
+        proxyType: Some(String::from(&regex_result[1])),
+        ip: Some(String::from(&regex_result[2])),
+        port: Some(String::from(&regex_result[3])),
         city: Some(response.city),
         country: Some(response.country),
         countryCode: Some(response.countryCode),
@@ -49,6 +55,12 @@ fn result_adapter(latency: u128, proxy_string: String, response: IP_RESPONSE) ->
 }
 
 pub fn check_proxy(proxy_string: String) -> Result {
+    // Generate random IDLE time
+    let mut rng = rand::thread_rng();
+    let random_number = rng.gen_range(0, 1);
+    let ide_duration = Duration::new(random_number, 0);
+    sleep(ide_duration);
+    //
     let proxy = reqwest::Proxy::all(&proxy_string).expect("Failed to build proxy");
     let client = reqwest::Client::builder()
         .cookie_store(true)
@@ -67,11 +79,10 @@ pub fn check_proxy(proxy_string: String) -> Result {
                 let resp = client.get("http://ip-api.com/json").send().await;
                 match resp {
                     Ok(response) => {
-                        let response_json = response.json::<IP_RESPONSE>().await;
+                        let response_json = response.json::<IpResponse>().await;
 
                         match response_json {
                             Ok(response_json) => {
-                                // println!("{:#?}", response_json.country);
                                 return result_adapter(current_time.elapsed().as_millis(), proxy_string, response_json);
                             }
                             Err(_) => {
