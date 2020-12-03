@@ -1,7 +1,7 @@
 extern crate reqwest;
 extern crate tokio;
 
-use dialoguer::{Input};
+use dialoguer::{Input, theme::ColorfulTheme, Select};
 use rusqlite::Connection;
 use std::sync::mpsc::channel;
 use std::time::Duration;
@@ -9,20 +9,40 @@ use console::Term;
 use std::thread;
 
 use colored::*;
-use crate::mode::runner::*;
+use crate::{constants, mode::runner::*};
 use crate::mode::utils::*;
 use crate::constants::*;
 
 pub fn check_proxy_file(conn: &Connection, term: &Term) {
+
+  // Select Proxy Location
+
   let proxy_list = vec![];
   let mut success_proxy_list: Vec<String> = vec![];
   let input : String = Input::new()
       .with_prompt("Drag and Drop your proxy file to here")
       .interact_text().unwrap();
 
+  // Select Proxy Type
+  
+  let proxy_type_label: [colored::ColoredString; 2] = constants::get_proxy_type_label();
+
+
+  let user_selection = Select::with_theme(&ColorfulTheme::default())
+      .with_prompt("Select your proxy type:")
+      .items(&proxy_type_label)
+      .default(0)
+      .interact_on_opt(&Term::stderr()).unwrap().unwrap();
+
+  let proxy_types = Vec::from(constants::PROXY_TYPE);
+
+  let selected_proxy_type = get_proxy_type_value(proxy_types[user_selection].clone());
+
+
+  // Initialize Values
 
   let mut proxy_list =
-  read_proxy_file(&term, &input[0..input.len()].to_string(), String::from("http"), proxy_list); // <--- proxy_list moved to here and returned by the function
+  read_proxy_file(&term, &input[0..input.len()].to_string(), selected_proxy_type, proxy_list); // <--- proxy_list moved to here and returned by the function
   
   let mut progress_proxies = 0;
 

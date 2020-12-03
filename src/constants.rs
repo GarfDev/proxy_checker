@@ -9,6 +9,25 @@ pub enum Mode {
   RE_CHECK_FROM_SQLITE,
 }
 
+#[derive(Debug, Clone)]
+pub enum ProxyType {
+  HTTP,
+  SOCKS5,
+}
+
+pub const PROXY_TYPE: [ProxyType; 2] = [ProxyType::HTTP, ProxyType::SOCKS5];
+
+pub fn get_proxy_type_label() -> [colored::ColoredString; 2] {
+  return ["[1] HTTP".bold(), "[2] SOCKS5".bold()]
+}
+
+pub fn get_proxy_type_value(proxy_type: ProxyType) -> String {
+  match proxy_type {
+    ProxyType::HTTP => "http".to_string(),
+    ProxyType::SOCKS5 => "socks5".to_string(),
+  }
+}
+
 pub const PROXY_REGEX: &str = "^(.*?)://(.*?):(.*?)$";
 
 pub const MODE: [Mode; 2] = [Mode::CHECK_CURRENT_FILE, Mode::RE_CHECK_FROM_SQLITE];

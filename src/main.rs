@@ -20,11 +20,13 @@ mod mode;
 
 fn main() {
 
-    let mode_label: [colored::ColoredString; 2] = constants::get_mode_label();
-
     // Select program mode
 
+    let mode_label: [colored::ColoredString; 2] = constants::get_mode_label();
+
+
     let user_selection = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Which mode you want to run:")
         .items(&mode_label)
         .default(0)
         .interact_on_opt(&Term::stderr()).unwrap().unwrap();
@@ -44,6 +46,7 @@ fn main() {
 
     let conn = mode::utils::initialize_sqlite("database.db");
     let term = Term::stdout();
+
     // Main loop
 
     loop {
@@ -53,16 +56,16 @@ fn main() {
                 mode::check_proxy_file::check_proxy_file(&conn, &term);
                 changeMode(&mut selected_mode, constants::Mode::RE_CHECK_FROM_SQLITE);
                 term.write_line("Re-check (proxies from sqlite) progress will be start in next 10 minute, and will").unwrap();
-                term.write_line("continually every 24 hours. result will be save to result.txt file").unwrap();
+                term.write_line("continually every 30 min. result will be update to result.txt file").unwrap();
                 thread::sleep(Duration::from_secs(10));
             }
             constants::Mode::RE_CHECK_FROM_SQLITE => {
                 loop {
                     mode::check_sqlite_file::check_sqlite_file(&conn, &term);
-                    let one_day = time::Duration::from_secs(86400);
-                    term.write_line("Re-check (proxies from sqlite) progress will be start in next 24 hour, result will").unwrap();
+                    let half_hour = time::Duration::from_secs(1800);
+                    term.write_line("Re-check (proxies from sqlite) progress will be start in next 30 min, result will").unwrap();
                     term.write_line("be save to result.txt file").unwrap();
-                    thread::sleep(one_day);
+                    thread::sleep(half_hour);
                     term.flush().unwrap();
                 }
             }

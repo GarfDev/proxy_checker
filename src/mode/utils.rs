@@ -153,7 +153,7 @@ pub fn initialize_sqlite(dbname: &str) -> Connection {
   conn
 }
 
-pub fn insert_proxy_to_database(conn: &Connection, proxy_info: constants::Result) {
+pub fn insert_proxy_to_database(conn: &Connection, proxy_info: constants::Result ) {
 
   let proxy_type: String = proxy_info.proxyType.unwrap();
   let ip: String = proxy_info.ip.unwrap();
@@ -162,22 +162,28 @@ pub fn insert_proxy_to_database(conn: &Connection, proxy_info: constants::Result
   let isp: String = format!("{}", proxy_info.isp.unwrap().clone());
   let latency: String = format!("{}", proxy_info.latency);
 
-  let _ = conn.execute("INSERT INTO proxy (proxy_type, ip, port, country, isp, latency) VALUES (:proxy_type, :ip, :port, :country, :isp, :latency)",
-  params![
-      &proxy_type,
-      &ip, 
-      &port,
-      &country,
-      &isp,
-      &latency,
-      ]).unwrap();
+  let mut proxy_query = conn.prepare("SELECT * from proxy WHERE ip = ?").unwrap(); 
+
+  let results = proxy_query.exists(params![&ip]).unwrap();
+  
+  if !results {
+    let _ = conn.execute("INSERT INTO proxy (proxy_type, ip, port, country, isp, latency) VALUES (:proxy_type, :ip, :port, :country, :isp, :latency)",
+    params![
+        &proxy_type,
+        &ip, 
+        &port,
+        &country,
+        &isp,
+        &latency,
+        ]).unwrap();
+  }
 }
 
 pub fn show_result(term: &Term, success: i32, failed: i32) {
 
   let success_str = format!("{}", success);
   let failed_str = format!("{}", failed);
-
+  
   term.write_line("\n").unwrap();
   term.write_line("\n").unwrap();
   let checked_string = format!("Checking progress is done, you have: {} working out of {} non-working proxies", success_str.bold().green(), failed_str.bold().red());
